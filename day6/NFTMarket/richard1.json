@@ -1,0 +1,16 @@
+{
+    "title": "JJ's NFT - Genji1",
+    "description": "Genji is a character from the game Overwatch.",
+    "image": "ipfs://bafybeiayo7ltxxvw6muirib6psw4kvz6guttwyryufxmhvtdus2a357cmi",
+    "attributes": [
+        {
+            "trait_type": "name",
+            "value": "Genji"
+        },
+        {
+            "trait_type": "chinese_name",
+            "value": "源氏"
+        }
+    ],
+    "version": "1"
+}

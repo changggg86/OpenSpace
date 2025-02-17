@@ -1,0 +1,16 @@
+{
+    "title": "Richard NFT",
+    "description": "Richard ",
+    "image": "ipfs://bafkreig6w2st2axqujxjjzh67cxdsmffvbc6dcveggcifycvmvmrltayty",
+    "attributes": [
+        {
+            "trait_type": "name",
+            "value": "Richard"
+        },
+        {
+            "trait_type": "profile",
+            "value": "profile picture"
+        }
+    ],
+    "version": "1"
+}

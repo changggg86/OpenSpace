@@ -66,8 +66,9 @@ contract BaseERC721 {
         string memory symbol_,
         string memory baseURI_
     ) {
-        /**code*/
-
+        _name = name_;
+        _symbol = symbol_;
+        _baseURI = baseURI_;
     }
 
     /**
@@ -84,16 +85,14 @@ contract BaseERC721 {
      * @dev See {IERC721Metadata-name}.
      */
     function name() public view returns (string memory) {
-        /**code*/
-
+        return _name;
     }
 
     /**
      * @dev See {IERC721Metadata-symbol}.
      */
     function symbol() public view returns (string memory) {
-        /**code*/
-        
+        return _symbol;
     }
 
     /**
@@ -101,17 +100,16 @@ contract BaseERC721 {
      */
     function tokenURI(uint256 tokenId) public view returns (string memory) {
         require(
-            /**code*/,
+            _exists(tokenId),
             "ERC721Metadata: URI query for nonexistent token"
         );
 
-        // should return baseURI
-        /**code*/
+        string memory baseURI = _baseURI;
+        return bytes(baseURI).length > 0 ? string(abi.encodePacked(baseURI, tokenId.toString())) : "";
     }
 
     /**
      * @dev Mints `tokenId` and transfers it to `to`.
-     *
      *
      * Requirements:
      *
@@ -121,10 +119,13 @@ contract BaseERC721 {
      * Emits a {Transfer} event.
      */
     function mint(address to, uint256 tokenId) public {
-        require(/**code*/ , "ERC721: mint to the zero address");
-        require(/**code*/, "ERC721: token already minted");
+        require(to != address(0), "ERC721: mint to the zero address");
+        require(!_exists(tokenId), "ERC721: token already minted");
 
-        /**code*/
+        _beforeTokenTransfer(address(0), to, tokenId);
+
+        _balances[to] += 1;
+        _owners[tokenId] = to;
 
         emit Transfer(address(0), to, tokenId);
     }
@@ -133,14 +134,16 @@ contract BaseERC721 {
      * @dev See {IERC721-balanceOf}.
      */
     function balanceOf(address owner) public view returns (uint256) {
-        /**code*/
+        require(owner != address(0), "ERC721: balance query for the zero address");
+        return _balances[owner];
     }
 
     /**
      * @dev See {IERC721-ownerOf}.
      */
     function ownerOf(uint256 tokenId) public view returns (address) {
-        /**code*/
+        address owner = _owners[tokenId];
+        return owner;
     }
 
     /**
@@ -148,38 +151,33 @@ contract BaseERC721 {
      */
     function approve(address to, uint256 tokenId) public {
         address owner = ownerOf(tokenId);
-        require(/**code*/, "ERC721: approval to current owner");
+        require(to != owner, "ERC721: approval to current owner");
 
         require(
-            /**code*/,
+            msg.sender == owner || isApprovedForAll(owner, msg.sender),
             "ERC721: approve caller is not owner nor approved for all"
         );
 
-       _approve(to, tokenId);
+        _approve(to, tokenId);
     }
 
     /**
      * @dev See {IERC721-getApproved}.
      */
     function getApproved(uint256 tokenId) public view returns (address) {
-        require(
-            /**code*/,
-            "ERC721: approved query for nonexistent token"
-        );
+        require(_exists(tokenId), "ERC721: approved query for nonexistent token");
 
-        /**code*/
+        return _tokenApprovals[tokenId];
     }
 
     /**
      * @dev See {IERC721-setApprovalForAll}.
      */
     function setApprovalForAll(address operator, bool approved) public {
-        address sender = msg.sender;
-        require(/**code*/, "ERC721: approve to caller");
-        
-        /**code*/
+        require(operator != msg.sender, "ERC721: approve to caller");
 
-        emit ApprovalForAll(sender, operator, approved);
+        _operatorApprovals[msg.sender][operator] = approved;
+        emit ApprovalForAll(msg.sender, operator, approved);
     }
 
     /**
@@ -189,7 +187,7 @@ contract BaseERC721 {
         address owner,
         address operator
     ) public view returns (bool) {
-        /**code*/
+        return _operatorApprovals[owner][operator];
     }
 
     /**
@@ -271,7 +269,7 @@ contract BaseERC721 {
      * and stop existing when they are burned (`_burn`).
      */
     function _exists(uint256 tokenId) internal view returns (bool) {
-        /**code*/
+        return _owners[tokenId] != address(0);
     }
 
     /**
@@ -285,12 +283,9 @@ contract BaseERC721 {
         address spender,
         uint256 tokenId
     ) internal view returns (bool) {
-        require(
-            /**code*/,
-            "ERC721: operator query for nonexistent token"
-        );
-
-        /**code*/
+        require(_exists(tokenId), "ERC721: operator query for nonexistent token");
+        address owner = ownerOf(tokenId);
+        return (spender == owner || getApproved(tokenId) == spender || isApprovedForAll(owner, spender));
     }
 
     /**
@@ -305,14 +300,16 @@ contract BaseERC721 {
      * Emits a {Transfer} event.
      */
     function _transfer(address from, address to, uint256 tokenId) internal {
-        require(
-           /**code*/,
-            "ERC721: transfer from incorrect owner"
-        );
+        require(ownerOf(tokenId) == from, "ERC721: transfer from incorrect owner");
+        require(to != address(0), "ERC721: transfer to the zero address");
 
-        require(/**code*/, "ERC721: transfer to the zero address");
+        _beforeTokenTransfer(from, to, tokenId);
 
-        /**code*/
+        _approve(address(0), tokenId);
+
+        _balances[from] -= 1;
+        _balances[to] += 1;
+        _owners[tokenId] = to;
 
         emit Transfer(from, to, tokenId);
     }
@@ -323,8 +320,7 @@ contract BaseERC721 {
      * Emits a {Approval} event.
      */
     function _approve(address to, uint256 tokenId) internal virtual {
-        /**code*/
-
+        _tokenApprovals[tokenId] = to;
         emit Approval(ownerOf(tokenId), to, tokenId);
     }
 
@@ -369,6 +365,26 @@ contract BaseERC721 {
             return true;
         }
     }
+
+    /**
+     * @dev Hook that is called before any token transfer. This includes minting
+     * and burning.
+     *
+     * Calling conditions:
+     *
+     * - When `from` and `to` are both non-zero, `from`'s `tokenId` will be
+     * transferred to `to`.
+     * - When `from` is zero, `tokenId` will be minted for `to`.
+     * - When `to` is zero, `from`'s `tokenId` will be burned.
+     * - `from` and `to` are never both zero.
+     *
+     * To learn more about hooks, head to xref:ROOT:extending-contracts.adoc#using-hooks[Using Hooks].
+     */
+    function _beforeTokenTransfer(
+        address from,
+        address to,
+        uint256 tokenId
+    ) internal virtual {}
 }
 
 contract BaseERC721Receiver is IERC721Receiver {
