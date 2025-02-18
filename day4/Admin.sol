@@ -10,6 +10,9 @@ contract Admin {
         owner = msg.sender;
     }
 
+    receive() external payable {
+    }
+
     modifier onlyOwner() {
         require(msg.sender == owner, "Only owner can call this function");
         _;
